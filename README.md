@@ -14,7 +14,9 @@ sudo pip install gym[atari]
 
 3. or install all environments
 
-```sudo pip install gym[all]```
+```
+sudo pip install gym[all]
+```
 
 4. for mac user, need to install cmake
 ```
