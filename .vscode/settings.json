@@ -1,5 +1,5 @@
 {
-    "python.pythonPath": "C:\\Users\\Mimo\\Anaconda3\\envs\\deeplearning\\python.exe",
+    "python.pythonPath": "C:\\Users\\Mimo\\anaconda3\\envs\\deeplearning\\python.exe",
     "python.formatting.provider": "autopep8",
     "python.linting.pylintEnabled": true,
     "python.linting.enabled": true

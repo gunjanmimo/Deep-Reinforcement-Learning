@@ -13,4 +13,9 @@ class DeepQNetwork(object):
         self.build_network()
         self.saver = tf.train.Saver()
         self.checkpoint_file = os.path.join(chkpt_dir, "deepqnet.ckpt")
-        self.params = tf.get_collection(tf.GraphKeys)
+        self.params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
+                                        scope = self.name)
+    def build_net(self):
+        with tf.variable_scope(self.name):
+            self.input = tf.placeholder(tf.float32,sh)
+        
