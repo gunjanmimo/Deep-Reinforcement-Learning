@@ -27,3 +27,53 @@ enemy_n = 3
 d = {1: (255, 175, 0),
      2: (0, 255, 0),
      3: (255, 0, 0)}
+
+
+class Blob:
+    def __init__(self):
+        self.x = np.random.randint(0, SIZE)
+        self.y = np.random.randint(o, SIZE)
+
+    def __str__(self):
+        return f"{self.x},{self.y}"
+
+    def __sub__(self, other):
+        return (self.x - other.x, self.y - other.y)
+
+    def action(self, choice):
+        if choice == 0:
+            self.move(x=1, y=1)
+        elif choice == 1:
+            self.move(x=-1, y=-1)
+        elif choice == 2:
+            self.move(x=-1, y=1)
+        elif choice == 3:
+            self.move(x=1, y=-1)
+
+        pass
+
+    def move(self, x=False, y=False):
+        if not x:
+            self.x += np.random.randint(-1, 2)
+        else:
+            self.x += x
+
+        if not y:
+            self.y += np.random.randint(-1, 2)
+        else:
+            self.y += y
+
+        if self.x < 0:
+            self.x = 0
+        elif self.x > SIZE-1:
+            self.x = SIZE-1
+
+        if self.y < 0:
+            self.y = 0
+        elif self.y > SIZE-1:
+            self.y = SIZE-1
+
+
+if start_q_table is None:
+    q_table = {}
+    for i in range(-SIZE+1, SIZE):
