@@ -1,6 +1,9 @@
 {
     "python.pythonPath": "/Users/gunjanpaul/opt/anaconda3/envs/unity/bin/python",
-    "python.formatting.provider": "autopep8",
+    "python.formatting.provider": "yapf",
     "python.linting.pylintEnabled": true,
-    "python.linting.enabled": true
+    "python.linting.enabled": true,
+    "cSpell.words": [
+        "Conv"
+    ]
 }
