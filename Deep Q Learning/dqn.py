@@ -8,9 +8,14 @@ from keras.optimizers import Adam
 from collections import deque
 import time
 import numpy as np
+import random
 
 REPLAY_MEMORY_SIZE = 50000
+MIN_REPLAY_MEMORY_SIZE = 1000
 MODEl_NAME = "256x2"
+MINIBATCH_SIZE = 64
+DISCOUNT = 0.99
+UPDATE_TARGET_EVERY = 5
 
 
 # Own Tensorboard class
@@ -111,3 +116,46 @@ class DqnAgent:
     def get_Qs(self, state, step):
         return self.model_predict(
             np.array(state).reshape(-1, *state.shape) / 255)[0]
+
+    def train(self, terminal_state, step):
+        if len(self.replay_memory) < MIN_REPLAY_MEMORY_SIZE:
+            return
+        minibatch = random.sample(self.replay_memory, MINIBATCH_SIZE)
+        current_states = np.array([transition[0]
+                                   for transition in minibatch]) / 255
+        current_Q_list = self.model.model_predict(current_states)
+
+        new_current_states = np.array(
+            [transition[3] for transition in minibatch]) / 255
+        future_Q_list = self.target_model.predict(new_current_states)
+
+        x = []
+        y = []
+
+        for index, (current_states, action, reward, new_current_states,
+                    done) in enumerate(minibatch):
+            if not done:
+                max_future_q = np.max(future_Q_list[index])
+                new_Q = reward + DISCOUNT * max_future_q
+            else:
+                new_Q = reward
+            current_Q = current_Q_list[index]
+            current_Q[action] = new_Q
+
+            x.append(current_states)
+            y.append(current_Q)
+
+        self.model.fit(
+            np.array(x) / 255,
+            np.array(y),
+            batch_size=MINIBATCH_SIZE,
+            verbose=0,
+            shuffle=False,
+            callbacks=[self.tensorboard] if terminal_state else None)
+
+        # updating to determine if we want to update target model yet
+        if terminal_state:
+            self.target_update_counter += 1
+        if self.target_update_counter > UPDATE_TARGET_EVERY:
+            self.target_model.set_weights(self.model.get_weights())
+            self.target_update_counter = 0
