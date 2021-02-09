@@ -1,25 +1,41 @@
-import keras
-import tensorflow as tf
+import numpy as np
+import keras.backend.tensorflow_backend as backend
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Conv2D, MaxPooling2D, Activation, Flatten
-import keras.callbacks
-from keras.callbacks import TensorBoard
 from keras.optimizers import Adam
+from keras.callbacks import TensorBoard
+import tensorflow as tf
 from collections import deque
 import time
-import numpy as np
 import random
+from tqdm import tqdm
+import os
+from PIL import Image
+import cv2
 
-REPLAY_MEMORY_SIZE = 50000
-MIN_REPLAY_MEMORY_SIZE = 1000
-MODEl_NAME = "256x2"
-MINIBATCH_SIZE = 64
 DISCOUNT = 0.99
-UPDATE_TARGET_EVERY = 5
+REPLAY_MEMORY_SIZE = 50_000  # How many last steps to keep for model training
+MIN_REPLAY_MEMORY_SIZE = 1_000  # Minimum number of steps in a memory to start training
+MINIBATCH_SIZE = 64  # How many steps (samples) to use for training
+UPDATE_TARGET_EVERY = 5  # Terminal states (end of episodes)
+MODEL_NAME = '2x256'
+MIN_REWARD = -200  # For model save
+MEMORY_FRACTION = 0.20
+
+# Environment settings
+EPISODES = 20_000
+
+# Exploration settings
+epsilon = 1  # not a constant, going to be decayed
+EPSILON_DECAY = 0.99975
+MIN_EPSILON = 0.001
+
+#  Stats settings
+AGGREGATE_STATS_EVERY = 50  # episodes
+SHOW_PREVIEW = False
+
 
 # blob
-
-
 class Blob:
     def __init__(self, size):
         self.size = size
@@ -123,8 +139,8 @@ class BlobEnv:
         self.player.action(action)
 
         #### MAYBE ###
-        #enemy.move()
-        #food.move()
+        #self.enemy.move()
+        #self.food.move()
         ##############
 
         if self.RETURN_IMAGES:
@@ -186,6 +202,8 @@ tf.set_random_seed(1)
 # Create models folder
 if not os.path.isdir('models'):
     os.makedirs('models')
+
+env = BlobEnv()
 
 
 # Own Tensorboard class
@@ -255,7 +273,7 @@ class DqnAgent:
 
         self.replay_memory = deque(maxlen=REPLAY_MEMORY_SIZE)
         self.tensorboard = ModifiedTensorBoard(
-            log_dir=f"logs/{MODEl_NAME}-{int(time.time())}")
+            log_dir=f"logs/{MODEL_NAME}-{int(time.time())}")
         self.target_update_counter = 0
 
     def create_model(self):
@@ -329,3 +347,51 @@ class DqnAgent:
         if self.target_update_counter > UPDATE_TARGET_EVERY:
             self.target_model.set_weights(self.model.get_weights())
             self.target_update_counter = 0
+
+
+agent = DqnAgent()
+for episode in tqdm(range(1, EPISODES + 1), ascii=True, unit="episode"):
+    agent.tensorboard.step = episode
+
+    episode_reward = 0
+    step = 1
+    current_states = env.reset()
+
+    done = False
+    while not done:
+        if np.random.random() > epsilon:
+            action = np.argmax(agent.get_Qs[current_states])
+        else:
+            action = np.random.randint(0, env.ACTION_SPACE_SIZE)
+        new_State, reward, done = env.step(action)
+        episode_reward += reward
+        if SHOW_PREVIEW and not episode % AGGREGATE_STATS_EVERY:
+            env.render()
+
+        agent.update_replay_memory(
+            (current_states, action, reward, new_State, done))
+        agent.train(done, step)
+
+        current_states = new_State
+        step += 1
+    ep_rewards.append(episode_reward)
+    if not episode % AGGREGATE_STATS_EVERY or episode == 1:
+        average_reward = sum(ep_rewards[-AGGREGATE_STATS_EVERY:]) / len(
+            ep_rewards[-AGGREGATE_STATS_EVERY:])
+        min_reward = min(ep_rewards[-AGGREGATE_STATS_EVERY:])
+        max_reward = max(ep_rewards[-AGGREGATE_STATS_EVERY:])
+        agent.tensorboard.update_stats(reward_avg=average_reward,
+                                       reward_min=min_reward,
+                                       reward_max=max_reward,
+                                       epsilon=epsilon)
+
+        # Save model, but only when min reward is greater or equal a set value
+        if min_reward >= MIN_REWARD:
+            agent.model.save(
+                f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.model'
+            )
+
+    # Decay epsilon
+    if epsilon > MIN_EPSILON:
+        epsilon *= EPSILON_DECAY
+        epsilon = max(MIN_EPSILON, epsilon)
